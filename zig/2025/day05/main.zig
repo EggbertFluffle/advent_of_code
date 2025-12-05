@@ -10,21 +10,22 @@ const RNode = struct {
 };
 
 pub fn main() !void {
-    // const ranges = try read_ranges("input_ranges.txt");
-    const ranges = try read_ranges("test_ranges.txt");
+    const ranges = try read_ranges("input_ranges.txt");
+    // const ranges = try read_ranges("test_ranges.txt");
 
     var melt: std.DoublyLinkedList = .{};
 
-    var first: RNode = .{ .range = ranges.items[0] };
+    var last: RNode = .{ .range = Range{std.math.maxInt(u64), std.math.maxInt(u64)} };
+    var first: RNode = .{ .range = Range{0, 0} };
+    melt.prepend(&last.node);
     melt.prepend(&first.node);
 
-    std.debug.print("{s}\n", .{if (collide(first.range, first.range)) "they collide" else "they dont collide"});
+    for (ranges.items) |range| {
+        try merge(range, &melt);
+    }
 
-    // try merge(ranges.items[0], &melt);
-
-    // for (ranges.items) |range| {
-    //     try merge(range, &melt);
-    // }
+    melt.remove(&first.node);
+    melt.remove(&last.node);
 
     var sum: u64 = 0;
     var it = melt.first;
@@ -42,26 +43,23 @@ pub fn merge(range: Range, melt: *std.DoublyLinkedList) !void {
         const r_node: *RNode = @alignCast(@fieldParentPtr("node", node));
         const current = r_node.range;
 
-        std.debug.print("range: {d}-{d}\n", .{current[0], current[1]});
-
         if(collide(range, current)) {
-            std.debug.print("Collision\n", .{});
             std.DoublyLinkedList.remove(melt, &r_node.node);
             try merge(Range{@min(current[0], range[0]), @max(current[1], range[1])}, melt);
+            return;
         } else if(current[1] < range[0]) {
-            std.debug.print("priming\n", .{});
             primed = true;
         } else if (primed and range[1] < current[0]) {
-            std.debug.print("primed and after\n", .{});
             const new_node = try allocator.create(RNode);
             new_node.range = range;
             std.DoublyLinkedList.insertBefore(melt, &r_node.node, &new_node.node);
+            return;
         }
     }
 }
 
 pub fn collide(r1: Range, r2: Range) bool {
-    return (r1[0] < r1[0] and r1[1] > r2[0]) or (r2[0] < r1[0] and r2[1] > r1[0]);
+    return (r1[0] <= r2[0] and r1[1] >= r2[0]) or (r2[0] <= r1[0] and r2[1] >= r1[0]);
 }
 
 pub fn read_ranges(file_name: []const u8) !std.ArrayList(Range) {
